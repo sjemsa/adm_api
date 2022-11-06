@@ -41,3 +41,5 @@ In current project is currently missing:
 Data type specific solutions: 
 * i didn't know if engine is gonna be used for only local citizens or any so no standartization checks are implemented for personal code
 * period and amount are set as BigDecimal for reason plsql number type didnt like int:)
+
+Test scripts were written but not executed once because i didnt have an access to database last 2 days where tests were written.  
