@@ -6,7 +6,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.UncategorizedSQLException;
 
 import java.math.BigDecimal;
-import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,9 +21,6 @@ class AdmApiApplicationTests {
 	private final BigDecimal maximumPeriod 				= BigDecimal.valueOf(60);
 	private final String customerWithDebt  				= "49002010965";
 	private final String customerWithLowSegment  		= "49002010976";
-	private final String customerWithMediumSegment  	= "49002010987";
-	private final String customerWithHighSegment  		= "49002010998";
-	private final String customerWithNoExternalCheck 	= "47901262217";
 
 
 	@Test
@@ -36,8 +32,6 @@ class AdmApiApplicationTests {
 		UncategorizedSQLException sqlException = assertThrows(UncategorizedSQLException.class, () -> databaseRepository.getDecision(personalCode, loanAmount, loanPeriod));
 		assertEquals(expectedException, sqlException.getMostSpecificCause().getMessage().split("\n")[0]);
 	}
-	//.indexOf("\n")
-
 
 	@Test
 	void getDecisionInvalidAmountTooBig() throws UncategorizedSQLException{
@@ -80,7 +74,8 @@ class AdmApiApplicationTests {
 	}
 
 	@Test
-	void getDecisionCustomerSegmentCheckImpossible() throws SQLException{
+	void getDecisionCustomerSegmentCheckImpossible() throws UncategorizedSQLException {
+		String customerWithNoExternalCheck = "47901262217";
 		var personalCode = customerWithNoExternalCheck;
 		var loanAmount= minimumAmount;
 		var loanPeriod = minimumPeriod;
@@ -91,57 +86,39 @@ class AdmApiApplicationTests {
 
 	@Test
 	void getDecisionAmountTooBigReturnSmaller() {
-		var personalCode = customerWithLowSegment;
-		var loanAmount= maximumAmount;
-		var loanPeriod = maximumPeriod;
-		var expectedAmount = BigDecimal.valueOf(6000);
-		DecisionResultDTO result  = databaseRepository.getDecision(personalCode, loanAmount, loanPeriod);
-		assertEquals(result.getLoanAmount(), expectedAmount);
-		assertEquals(result.getLoanPeriod(), loanPeriod);
+		DecisionResultDTO result  = databaseRepository.getDecision(customerWithLowSegment, maximumAmount, maximumPeriod);
+		assertEquals(BigDecimal.valueOf(6000), result.getLoanAmount());
+		assertEquals(maximumPeriod, result.getLoanPeriod());
 	}
 
 	@Test
 	void getDecisionAmountTooSmallReturnMaximumPossible() {
-		var personalCode = customerWithLowSegment;
-		var loanAmount= minimumAmount;
-		var loanPeriod = maximumPeriod;
-		var expectedAmount = BigDecimal.valueOf(6000);
-		DecisionResultDTO result  = databaseRepository.getDecision(personalCode, loanAmount, loanPeriod);
-		assertEquals(result.getLoanAmount(), expectedAmount);
-		assertEquals(result.getLoanPeriod(), loanPeriod);
+		DecisionResultDTO result  = databaseRepository.getDecision(customerWithLowSegment, minimumAmount, maximumPeriod);
+		assertEquals(BigDecimal.valueOf(6000), result.getLoanAmount());
+		assertEquals(maximumPeriod, result.getLoanPeriod());
 	}
 
 	@Test
 	void getDecisionPeriodTooShortReturnLonger() {
-		var personalCode = customerWithLowSegment;
-		var loanAmount= BigDecimal.valueOf(2000);
-		var loanPeriod = BigDecimal.valueOf(16);
-		var expectedPeriod = BigDecimal.valueOf(20);
-		DecisionResultDTO result  = databaseRepository.getDecision(personalCode, loanAmount, loanPeriod);
-		assertEquals(result.getLoanAmount(), loanAmount);
-		assertEquals(result.getLoanPeriod(), expectedPeriod);
+		DecisionResultDTO result  = databaseRepository.getDecision(customerWithLowSegment, BigDecimal.valueOf(2000), BigDecimal.valueOf(16));
+		assertEquals(BigDecimal.valueOf(2000), result.getLoanAmount());
+		assertEquals(BigDecimal.valueOf(20), result.getLoanPeriod());
 	}
 
 	@Test
 	void getDecisionCustomerWithHighSegment() {
-		var personalCode = customerWithHighSegment;
-		var loanAmount= BigDecimal.valueOf(5000);
-		var loanPeriod = BigDecimal.valueOf(24);
-		var expectedAmount = BigDecimal.valueOf(10000);
-		DecisionResultDTO result  = databaseRepository.getDecision(personalCode, loanAmount, loanPeriod);
-		assertEquals(result.getLoanAmount(), expectedAmount);
-		assertEquals(result.getLoanPeriod(), loanPeriod);
+		String customerWithHighSegment = "49002010998";
+		DecisionResultDTO result  = databaseRepository.getDecision(customerWithHighSegment, BigDecimal.valueOf(5000), BigDecimal.valueOf(24));
+		assertEquals(BigDecimal.valueOf(10000), result.getLoanAmount());
+		assertEquals(BigDecimal.valueOf(24), result.getLoanPeriod());
 	}
 
 	@Test
 	void getDecisionCustomerWithMediumSegment() {
-		var personalCode = customerWithMediumSegment;
-		var loanAmount= BigDecimal.valueOf(2500);
-		var loanPeriod = BigDecimal.valueOf(24);
-		var expectedAmount = BigDecimal.valueOf(7200);
-		DecisionResultDTO result  = databaseRepository.getDecision(personalCode, loanAmount, loanPeriod);
-		assertEquals(result.getLoanAmount(), expectedAmount);
-		assertEquals(result.getLoanPeriod(), loanPeriod);
+		String customerWithMediumSegment = "49002010987";
+		DecisionResultDTO result  = databaseRepository.getDecision(customerWithMediumSegment, BigDecimal.valueOf(2500), BigDecimal.valueOf(24));
+		assertEquals(BigDecimal.valueOf(7200), result.getLoanAmount());
+		assertEquals(BigDecimal.valueOf(24), result.getLoanPeriod());
 	}
 
 }

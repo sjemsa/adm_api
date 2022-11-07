@@ -55,7 +55,7 @@ is
 	    when no_data_found then raise customer_check_impossible;
 	end get_customer_segment;
 ------------------------------------------------------------------------------------------------------------------------
-	procedure get_credit_modifier_by_segment(i_segment_id 		in		segment.id%type,
+	procedure check_credit_modifier_by_segment(i_segment_id 		in		segment.id%type,
 											 o_credit_modifier	out 	segment.credit_modifier%type)
 		is
 		x_credit_modifier segment.credit_modifier%type;
@@ -67,22 +67,14 @@ is
 	if x_credit_modifier <> 0 then o_credit_modifier := x_credit_modifier;
 	 else raise customer_has_debt;
 	end if;
-	end get_credit_modifier_by_segment;
+	end check_credit_modifier_by_segment;
 ------------------------------------------------------------------------------------------------------------------------
 	procedure calculate_amount(i_credit_modifier 	in			number,
 							   io_loan_amount 		in	out		number,
 							   i_loan_period 		in			number)
 		is
-		x_loan_amount number;
 	begin
-		x_loan_amount := round((i_credit_modifier * i_loan_period),0);
-		if x_loan_amount between get_minimum_amount and io_loan_amount
-            then io_loan_amount := greatest(x_loan_amount,get_minimum_amount);
-        elsif ((x_loan_amount between io_loan_amount and get_maximum_amount) and x_loan_amount < get_maximum_amount)
-            then io_loan_amount := least(x_loan_amount,get_maximum_amount);
-        elsif x_loan_amount > get_maximum_amount
-            then io_loan_amount := get_maximum_amount;
-        end if;
+		io_loan_amount := least(greatest(round((i_credit_modifier * i_loan_period),0),get_minimum_amount()),get_maximum_amount());
 	end calculate_amount;
 ------------------------------------------------------------------------------------------------------------------------
 	procedure calculate_new_period(i_credit_modifier 	in			number,
@@ -103,8 +95,7 @@ is
 	procedure validate_amount(i_loan_amount 		in 		number)
 		is
 	begin
-		if i_loan_amount < get_minimum_amount
-			or i_loan_amount > get_maximum_amount
+		if i_loan_amount not between get_minimum_amount and get_maximum_amount
 		then
 			raise invalid_amount_input;
 		end if;
@@ -113,8 +104,7 @@ is
 	procedure validate_period(i_loan_period 		in 		number)
 		is
 	begin
-		if i_loan_period < get_minimum_period
-		or i_loan_period > get_maximum_period
+		if i_loan_period not between get_minimum_period and get_maximum_period
 		then
 			raise invalid_period_input;
 		end if;
@@ -138,13 +128,11 @@ is
 		x_credit_modifier   segment.credit_modifier%type;
 	begin
 		validate_input(io_loan_amount, io_loan_period);
-		get_credit_modifier_by_segment(get_customer_segment(i_personal_code), x_credit_modifier);
+		check_credit_modifier_by_segment(get_customer_segment(i_personal_code), x_credit_modifier);
         calculate_amount(x_credit_modifier, io_loan_amount, io_loan_period);
 		if not is_scoring_valid(x_credit_modifier, io_loan_amount, io_loan_period) then
 			calculate_new_period(x_credit_modifier,io_loan_amount,io_loan_period);
 		end if;
---for testing purposes
-    dbms_output.put_line('Loan decission is POSITIVE in amount '||IO_LOAN_AMOUNT||' euros for period '||IO_LOAN_PERIOD||' months!');
 	exception
 		when invalid_amount_input then
 			raise_application_error(-20003, 'Invalid amount input. Minimum possible amount is '||get_minimum_amount||' and maximum amount is '||get_maximum_amount||'!',true);
